@@ -82,7 +82,9 @@ def single_push_out(left, right, m):
         if a in m.labels and b in m.labels and a != -1 and b != -1:
             a1 = m.labels.index(a)
             b1 = m.labels.index(b)
-            m.G.add_edge(a1, b1)
+            
+            if (a1, b1) not in m.G.edges and (b1, a1) not in m.G.edges:
+                m.G.add_edge(a1, b1)
 
     return m
 
