@@ -46,10 +46,10 @@ def single_push_out(left, right, m):
             to_delete.append([label, i])
 
     for i in to_delete:
-        for j in range(len(m.labels)):
-            if i[0] == m.labels[j]:
-                m.G.remove_edges_from(list(m.G.edges(j)))
-                m.G.remove_node(j)
+        label_to_remove, index_to_remove = i
+        for node in list(m.G.nodes):
+            if m.G.nodes[node]['label'] == label_to_remove:
+                m.G.remove_edges_from(list(m.G.edges(node)))
                 break
 
     for i in to_delete:
@@ -57,22 +57,26 @@ def single_push_out(left, right, m):
 
     new_nodes = []
     new_labels = []
+
     for i, label in enumerate(right.labels):
         if label not in [node_data['label'] for _, node_data in m.G.nodes(data=True)]:
             new_nodes.append([label, i])
 
     for i in range(len(new_nodes)):
-        new_labels.append(new_nodes[i][0])
-        m.G.add_node(len(m.labels) + i, label=new_nodes[i][0])
-
-    m.labels = m.labels + new_labels
-
+        label = new_nodes[i][0]
+        new_labels.append(label)
+        if label not in m.labels:
+            new_node_index = len(m.labels)
+            m.G.add_node(new_node_index, label=label)
+            m.labels.append(label)  
+            
     for i in list(left.G.edges):
         a = left.G.nodes[i[0]]['label']
         b = left.G.nodes[i[1]]['label']
         if a in m.labels and b in m.labels and a != -1 and b != -1:
             a1 = m.labels.index(a)
             b1 = m.labels.index(b)
+
             if (a1, b1) in m.G.edges:
                 m.G.remove_edge(a1, b1)
 
@@ -82,28 +86,24 @@ def single_push_out(left, right, m):
         if a in m.labels and b in m.labels and a != -1 and b != -1:
             a1 = m.labels.index(a)
             b1 = m.labels.index(b)
-            
+
             if (a1, b1) not in m.G.edges and (b1, a1) not in m.G.edges:
                 m.G.add_edge(a1, b1)
 
     return m
 
 def is_subgraph(sub, full):
-    # Mapowanie etykiet wierzchołków z sub i full, aby umożliwić dopasowanie
     sub_labels = {node: data['label'] for node, data in sub.G.nodes(data=True)}
     full_labels = {node: data['label'] for node, data in full.G.nodes(data=True)}
 
-    # Sprawdzamy, czy każdy wierzchołek z sub znajduje odpowiednika w full
     sub_to_full_mapping = {}
     for sub_node, sub_label in sub_labels.items():
-        # Znajdź wierzchołek w full z tym samym label
         matched_nodes = [node for node, label in full_labels.items() if label == sub_label]
         if not matched_nodes:
-            return False  # Brak odpowiedniego wierzchołka
+            return False
 
-        sub_to_full_mapping[sub_node] = matched_nodes[0]  # Przypisz pierwszy znaleziony
+        sub_to_full_mapping[sub_node] = matched_nodes[0]
 
-    # Sprawdź, czy każda krawędź w sub ma odpowiednik w full (jako nieuporządkowane pary)
     for sub_edge in sub.G.edges:
         u, v = sub_edge
         full_u = sub_to_full_mapping[u]
