@@ -128,8 +128,8 @@ def save_to_excel(graph, file_name='dane_grafu.xlsx'):
         pd.DataFrame(edges).to_excel(writer, sheet_name='Krawędzie')
 
 def start():
-    which_example = input('Wybierz przykład [1, 2, 3, 4, 5]: ')
-    if which_example.isdigit() and int(which_example) in [1, 2, 3, 4, 5]:
+    which_example = input('Wybierz przykład [1, 2]: ')
+    if which_example.isdigit() and int(which_example) in [1, 2]:
         graph = Graph.from_file(f"example{which_example}.txt")
         init_graph = graph[0]
 
@@ -143,13 +143,11 @@ def start():
         left = graph[transformation_index * 2 - 1]
         right = graph[transformation_index * 2]
 
-        if input('Narysować lewą stronę transformacji [y/n] :') == 'y':
-            draw(left, 'lewa_strona_transformacji.png')
-            save_to_excel(left, 'dane_lewa_strona.xlsx')
+        draw(left, 'lewa_strona_transformacji.png')
+        save_to_excel(left, 'dane_lewa_strona.xlsx')
 
-        if input('Narysować prawą stronę transformacji [y/n] :') == 'y':
-            draw(right, 'prawa_strona_transformacji.png')
-            save_to_excel(right, 'dane_prawa_strona.xlsx')
+        draw(right, 'prawa_strona_transformacji.png')
+        save_to_excel(right, 'dane_prawa_strona.xlsx')
 
         graf_after_transformation = single_push_out(left, right, init_graph)
         draw(graf_after_transformation, 'graf_po_transformacji.png')
