@@ -4,16 +4,15 @@ import pandas as pd
 
 class Graph:
     def __init__(self, labels, edges):
-        self.labels = labels  # Lista etykiet węzłów
-        self.edges = edges    # Lista krawędzi (par węzłów)
-        self.G = nx.Graph()   # Graf z użyciem NetworkX
+        self.labels = labels
+        self.edges = edges
+        self.G = nx.Graph()
         for i, label in enumerate(labels):
-            self.G.add_node(i, label=label)  # Dodaj węzły z etykietami
+            self.G.add_node(i, label=label)
         for edge in edges:
-            self.G.add_edge(*edge)  # Dodaj krawędzie
+            self.G.add_edge(*edge)
 
     def correct(self):
-        # Sprawdza, czy etykiety węzłów w grafie zgadzają się z oryginalnymi etykietami
         label_set = {label for label in self.labels}
         if set(nx.get_node_attributes(self.G, 'label').values()) != label_set:
             return False
@@ -29,37 +28,33 @@ class Graph:
             for line in lines:
                 line = line.strip()
                 if line.startswith("("):
-                    # Parsowanie krawędzi
                     edges = [tuple(map(int, edge[1:-1].split(','))) for edge in line.split(";")]
                 else:
-                    # Parsowanie etykiet węzłów
                     labels = line.split(";")
                     g = cls(labels, edges)
                     if g.correct():
                         graphs.append(g)
             return graphs
 
-def spo(left, right, m):
-    # Sprawdzamy, czy lewa strona jest podzbiorem początkowego grafu
+def single_push_out(left, right, m):
     if not is_subgraph(left, m):
         print("Lewa strona transformacji nie jest podzbiorem oryginalnego grafu. Zwracamy oryginalny graf.")
-        return m  # Zwracamy oryginalny graf, bez żadnej zmiany
+        return m
 
     # Usuwanie węzłów z grafu początkowego, które nie występują w prawym grafie
     to_delete = []
     for i, label in enumerate(left.labels):
-        if i not in right.G.nodes:
+        if label not in [node_data['label'] for _, node_data in right.G.nodes(data=True)]:
             to_delete.append([label, i])
 
     # Usuwanie węzłów i ich krawędzi
     for i in to_delete:
         for j in range(len(m.labels)):
             if i[0] == m.labels[j]:
-                m.G.remove_edges_from(list(m.G.edges(j)))  # Usuń wszystkie krawędzie wychodzące z węzła
-                m.G.remove_node(j)  # Usuń węzeł
+                m.G.remove_edges_from(list(m.G.edges(j)))
+                m.G.remove_node(j)
                 break
 
-    # Aktualizowanie etykiety węzłów na -1
     for i in to_delete:
         m.labels[i[1]] = -1
 
@@ -67,7 +62,7 @@ def spo(left, right, m):
     new_nodes = []
     new_labels = []
     for i, label in enumerate(right.labels):
-        if i not in left.G.nodes:
+        if label not in [node_data['label'] for _, node_data in m.G.nodes(data=True)]:
             new_nodes.append([label, i])
 
     # Dodanie nowych węzłów do grafu
@@ -75,106 +70,90 @@ def spo(left, right, m):
         new_labels.append(new_nodes[i][0])
         m.G.add_node(len(m.labels) + i, label=new_nodes[i][0])
 
-    # Aktualizacja etykiet węzłów
     m.labels = m.labels + new_labels
 
     # Usuwanie krawędzi, które są w lewym grafie, ale już istnieją w grafie początkowym
     for i in list(left.G.edges):
-        a = left.labels[i[0]]
-        b = left.labels[i[1]]
+        a = left.G.nodes[i[0]]['label']
+        b = left.G.nodes[i[1]]['label']
 
         if a in m.labels and b in m.labels and a != -1 and b != -1:
-            a1 = 0
-            b1 = 0
-            for j in range(len(m.labels)):
-                if m.labels[j] == a:
-                    a1 = j
-                if m.labels[j] == b:
-                    b1 = j
+            a1 = m.labels.index(a)
+            b1 = m.labels.index(b)
             if (a1, b1) in m.G.edges:
                 m.G.remove_edge(a1, b1)
 
     # Dodawanie krawędzi z prawego grafu, które są w nowym grafie
     for i in list(right.G.edges):
-        if len(list(left.G.nodes)) >= len(list(right.G.nodes)):
-            a = left.labels[i[0]]
-            b = left.labels[i[1]]
-        else:
-            a = right.labels[i[0]]
-            b = right.labels[i[1]]
+        a = right.G.nodes[i[0]]['label']
+        b = right.G.nodes[i[1]]['label']
 
         if a in m.labels and b in m.labels and a != -1 and b != -1:
-            a1 = 0
-            b1 = 0
-            for j in range(len(m.labels)):
-                if m.labels[j] == a:
-                    a1 = j
-                if m.labels[j] == b:
-                    b1 = j
+            a1 = m.labels.index(a)
+            b1 = m.labels.index(b)
             m.G.add_edge(a1, b1)
 
     return m
 
+
 def is_subgraph(sub, full):
-    """
-    Funkcja sprawdzająca, czy graf 'sub' jest podzbiorem grafu 'full'.
-    """
-    # Sprawdzamy, czy etykiety węzłów w 'sub' są podzbiorem etykiet w 'full'
-    if not set(sub.labels).issubset(set(full.labels)):
+    sub_labels = [node_data['label'] for _, node_data in sub.G.nodes(data=True)]
+    full_labels = [node_data['label'] for _, node_data in full.G.nodes(data=True)]
+    
+    if not set(sub_labels).issubset(set(full_labels)):
         return False
 
-    # Sprawdzamy, czy krawędzie w 'sub' są podzbiorem krawędzi w 'full'
     for edge in sub.G.edges:
         if edge not in full.G.edges:
             return False
 
     return True
 
+
 def draw(graph, filename):
     plt.clf()
     plt.title(filename)
-    pos = nx.spring_layout(graph.G)  # Używamy obiektu 'G' do obliczenia układu węzłów
+    pos = nx.spring_layout(graph.G)
     labels = nx.get_node_attributes(graph.G, 'label')
     nx.draw_networkx(graph.G, pos, with_labels=True, labels=labels, node_color='lightblue', font_size=10)
-    plt.savefig(filename)  # Zapisz obraz grafu
+    plt.savefig(filename)
     plt.show()
 
-def zapisz_do_excela(graph, nazwa_pliku='dane_grafu.xlsx'):
-    wezly = [{"Węzeł": n, "Etykieta": graph.G.nodes[n]['label']} for n in graph.G.nodes()]
-    krawedzie = [{"Początek": e[0], "Koniec": e[1]} for e in graph.G.edges()]
+def save_to_excel(graph, file_name='dane_grafu.xlsx'):
+    labels = [{"Węzeł": n, "Etykieta": graph.G.nodes[n]['label']} for n in graph.G.nodes()]
+    edges = [{"Początek": e[0], "Koniec": e[1]} for e in graph.G.edges()]
 
-    with pd.ExcelWriter(nazwa_pliku) as writer:
-        pd.DataFrame(wezly).to_excel(writer, sheet_name='Węzły')
-        pd.DataFrame(krawedzie).to_excel(writer, sheet_name='Krawędzie')
+    with pd.ExcelWriter(file_name) as writer:
+        pd.DataFrame(labels).to_excel(writer, sheet_name='Węzły')
+        pd.DataFrame(edges).to_excel(writer, sheet_name='Krawędzie')
 
 def start():
     which_example = input('Wybierz przykład [1, 2, 3, 4, 5]: ')
     if which_example.isdigit() and int(which_example) in [1, 2, 3, 4, 5]:
-        grafy = Graph.from_file(f"example{which_example}.txt")
-        graf_poczatkowy = grafy[0]
+        graph = Graph.from_file(f"example{which_example}.txt")
+        init_graph = graph[0]
 
-        # Rysowanie grafu początkowego
-        draw(graf_poczatkowy, 'graf_poczatkowy.png')
-        zapisz_do_excela(graf_poczatkowy, 'dane_graf_poczatkowy.xlsx')
+        draw(init_graph, 'graf_poczatkowy.png')
+        save_to_excel(init_graph, 'dane_graf_poczatkowy.xlsx')
 
-        ilosc_transformacji = int((len(grafy) - 1) / 2)
-        indeksy_transformacji = [str(i) for i in range(1, ilosc_transformacji + 1)]
-        ktora_transformacja = int(input(f'Wybierz transformację [{",".join(indeksy_transformacji)}]: '))
+        transformation_count = int((len(graph) - 1) / 2)
+        transformation_indexes = [str(i) for i in range(1, transformation_count + 1)]
+        transformation_index = int(input(f'Wybierz transformację [{",".join(transformation_indexes)}]: '))
 
-        lewy = grafy[ktora_transformacja * 2 - 1]
-        prawy = grafy[ktora_transformacja * 2]
+        left = graph[transformation_index * 2 - 1]
+        right = graph[transformation_index * 2]
 
         if input('Narysować lewą stronę transformacji [y/n] :') == 'y':
-            draw(lewy, 'lewa_strona_transformacji.png')
-            zapisz_do_excela(lewy, 'dane_lewa_strona.xlsx')
+            draw(left, 'lewa_strona_transformacji.png')
+            save_to_excel(left, 'dane_lewa_strona.xlsx')
 
         if input('Narysować prawą stronę transformacji [y/n] :') == 'y':
-            draw(prawy, 'prawa_strona_transformacji.png')
-            zapisz_do_excela(prawy, 'dane_prawa_strona.xlsx')
+            draw(right, 'prawa_strona_transformacji.png')
+            save_to_excel(right, 'dane_prawa_strona.xlsx')
 
-        graf_po_transformacji = spo(lewy, prawy, graf_poczatkowy)
-        draw(graf_po_transformacji, 'graf_po_transformacji.png')
-        zapisz_do_excela(graf_po_transformacji, 'dane_graf_po_transformacji.xlsx')
+        graf_after_transformation = single_push_out(left, right, init_graph)
+        draw(graf_after_transformation, 'graf_po_transformacji.png')
+        save_to_excel(graf_after_transformation, 'dane_graf_po_transformacji.xlsx')
 
 if __name__ == "__main__":
     start()
