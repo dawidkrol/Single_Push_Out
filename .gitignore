@@ -384,3 +384,5 @@ google-services.json
 dane*
 *.png
 .idea/*
+example*.txt
+*.xlsx
